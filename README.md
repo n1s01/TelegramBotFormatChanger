@@ -10,7 +10,7 @@ pip install -r req.txt
 
 ## Setup
 
-Create `.env` file or set environment variable:
+Rename `.env.example` to `.env` file or set environment variable:
 ```
 BOT_TOKEN=your_bot_token_here
 ```
