@@ -1,26 +1,33 @@
 import asyncio
 import logging
 import os
+from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
+# Загружаем переменные из .env файла
+load_dotenv()
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 cache = {}
 
 def get_token():
-    return os.getenv('BOT_TOKEN') or input('Enter bot token: ')
+    token = os.getenv('BOT_TOKEN')
+    if not token:
+        raise ValueError("BOT_TOKEN not found in environment variables. Please check your .env file.")
+    return token
 
 def gen_key(text, msg_id):
     return f"fmt_{hash(text)}_{msg_id}"
 
 def make_kb(key):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="HTML", callback_data=f"html_{key}")],
-        [InlineKeyboardButton(text="Markdown", callback_data=f"md_{key}")]
+        [InlineKeyboardButton(text="HTML", callback_data=f"html_{key}"),
+         InlineKeyboardButton(text="Markdown", callback_data=f"md_{key}")]
     ])
 
 def to_html(text):
@@ -45,9 +52,9 @@ async def process_text(msg: Message):
     cache[key] = text
     
     await msg.answer(
-        f"Original text:\n<code>{to_html(text)}</code>\n\nChoose format:",
-        reply_markup=make_kb(key),
-        parse_mode=ParseMode.HTML
+        "В каком формате вернуть код?",
+        reply_to_message_id=msg.message_id,
+        reply_markup=make_kb(key)
     )
 
 async def handle_callback(call: CallbackQuery):
@@ -55,13 +62,15 @@ async def handle_callback(call: CallbackQuery):
     text = cache.get(key, "Text not found")
     
     if fmt == "html":
-        result = f"<code>{to_html(text)}</code>"
+        # Возвращаем текст в блоке кода HTML
+        result = f"<pre><code>{to_html(text)}</code></pre>"
         parse_mode = ParseMode.HTML
     else:
+        # Возвращаем текст в блоке кода Markdown
         result = f"```\n{to_md(text)}\n```"
         parse_mode = ParseMode.MARKDOWN_V2
     
-    await call.message.edit_text(f"Formatted text:\n{result}", parse_mode=parse_mode)
+    await call.message.answer(result, parse_mode=parse_mode)
     await call.answer()
 
 dp = Dispatcher()
